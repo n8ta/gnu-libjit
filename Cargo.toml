@@ -1,0 +1,10 @@
+[package]
+name = "gnu-libjit"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gnu-libjit-sys = "0.0.0"
+libc = "0.2"
