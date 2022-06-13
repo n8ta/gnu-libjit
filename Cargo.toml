@@ -2,7 +2,7 @@
 name = "gnu-libjit"
 version = "0.1.0"
 edition = "2021"
-license = " GPL-2.0-only"
+license = "GPL-2.0-only"
 homepage = "https://github.com/n8ta/gnu-libjit-sys"
 repository = "https://github.com/n8ta/gnu-libjit-sys"
 
