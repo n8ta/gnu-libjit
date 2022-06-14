@@ -1,11 +1,11 @@
-use std::env::Args;
 use std::ffi::CString;
 use std::os::raw::c_uint;
-use gnu_libjit_sys::{jit_function_compile, jit_function_t, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_value_get_type, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure};
+use gnu_libjit_sys::{jit_function_compile, jit_function_t, jit_insn_eq, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_value_get_type, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure, jit_insn_branch_if, jit_label_t, jit_insn_label, jit_insn_branch_if_not};
 use libc::c_void;
 use crate::constant::Constant;
 use crate::context::Exception;
 use crate::{Abi, JitType};
+use crate::label::Label;
 use crate::util::dump;
 use crate::value::Value;
 
@@ -22,6 +22,16 @@ macro_rules! op {
                 let v = $jit_op(self.function, left.value, right.value);
                 let t = jit_value_get_type(v);
                 Value::new(v, JitType::new(t))
+            }
+        }
+    }
+}
+
+macro_rules! unary_op {
+    ($fn_name:ident, $jit_op:ident) => {
+        pub fn $fn_name(&mut self, value: Value) {
+            unsafe {
+                $jit_op(self.function, value.value);
             }
         }
     }
@@ -106,12 +116,30 @@ impl Function {
     op!(insn_add, jit_insn_add);
     op!(insn_div, jit_insn_div);
     op!(insn_sub, jit_insn_sub);
+    op!(insn_eq, jit_insn_eq);
 
-    pub fn insn_return(&mut self, value: Value) {
+    unary_op!(insn_return, jit_insn_return);
+
+    pub fn branch_if(&self, value: Value, label: &mut Label) {
         unsafe {
-            jit_insn_return(self.function, value.value)
-        };
+            jit_insn_branch_if(self.function, value.value, &mut label.inner as *mut jit_label_t);
+        }
     }
+
+    pub fn branch_if_not(&self, value: Value, label: &mut Label) {
+        unsafe {
+            jit_insn_branch_if_not(self.function, value.value, &mut label.inner as *mut jit_label_t);
+        }
+    }
+
+    pub fn insn_label(&self, mut label: Label)  {
+        // let lbl = label.inner;
+        unsafe {
+            let lbl_ptr = (&mut label.inner) as *mut jit_label_t;
+            jit_insn_label(self.function, lbl_ptr);
+        }
+    }
+
     pub fn create_constant(&mut self, constant: Constant) -> Value {
         Value::new(unsafe {
             jit_value_create_constant(
