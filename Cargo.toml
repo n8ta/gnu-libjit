@@ -3,8 +3,8 @@ name = "gnu-libjit"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-2.0-only"
-homepage = "https://github.com/n8ta/gnu-libjit-sys"
-repository = "https://github.com/n8ta/gnu-libjit-sys"
+homepage = "https://github.com/n8ta/gnu-libjit"
+repository = "https://github.com/n8ta/gnu-libjit"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
