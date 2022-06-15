@@ -12,8 +12,8 @@ fn main() {
     let x = func.arg(0).unwrap();
     let y = func.arg(1).unwrap();
     let z = func.arg(2).unwrap();
-    let temp1 = func.insn_mult(x, y);
-    let temp2 = func.insn_add(temp1, z);
+    let temp1 = func.insn_mult(&x, &y);
+    let temp2 = func.insn_add(&temp1, &z);
     func.insn_return(temp2);
     func.compile();
     context.build_end();

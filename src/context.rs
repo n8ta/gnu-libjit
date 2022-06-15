@@ -1,6 +1,6 @@
 use std::num::TryFromIntError;
 use std::os::raw::c_uint;
-use gnu_libjit_sys::{jit_context_build_end, jit_context_build_start, jit_context_create, jit_context_t, jit_type_long, jit_function_create, jit_type_create_signature, jit_type_float32, jit_type_float64, jit_type_free, jit_type_int, jit_type_t, jit_abi_t};
+use gnu_libjit_sys::{jit_context_build_end, jit_context_build_start, jit_context_create, jit_context_t, jit_type_long, jit_function_create, jit_type_create_signature, jit_type_float32, jit_type_float64, jit_type_free, jit_type_int, jit_type_t, jit_abi_t, jit_type_sbyte, jit_type_ubyte};
 use crate::{Abi, Function, JitType};
 
 pub struct Context {
@@ -60,12 +60,10 @@ impl Context {
     pub fn long_type() -> JitType {
         unsafe { JitType::new(jit_type_long) }
     }
-
     pub fn float32_type() -> JitType {
         unsafe { JitType::new(jit_type_float32) }
     }
-    pub fn float64_type() -> JitType {
-        unsafe { JitType::new(jit_type_float64) }
-    }
-
+    pub fn float64_type() -> JitType { unsafe { JitType::new(jit_type_float64) } }
+    pub fn sbyte_type() -> JitType { unsafe { JitType::new(jit_type_sbyte) } }
+    pub fn ubyte_type() -> JitType { unsafe { JitType::new(jit_type_ubyte) } }
 }
