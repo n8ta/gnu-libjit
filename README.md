@@ -34,7 +34,7 @@ fn main() {
     println!("3*5+2 = {}", result(3,5,2))
 }
 ```
-See `./examples` and `./src/test.rs` for more. There are no docs. Functions are named almost exactly as in the libjit library. You can use its docs [here](https://www.gnu.org/software/libjit/doc/libjit.html).)
+See `./examples` and `./src/test.rs` for more. There are no docs. Functions are named almost exactly as in the libjit library. You can use its docs [here](https://www.gnu.org/software/libjit/doc/libjit.html).
 
 # Features
 - Most common types supported `f32`, `f64`, `i64`, `i32`, `i8`, `u8` `*mut c_void`
