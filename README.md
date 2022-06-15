@@ -1,11 +1,12 @@
 # gnu-libjit
+**Warning**: This wrapper contains only exactly the functionality from libjit I needed for my own project. You may find it to be missing a piece of functionality. It shouldn't be too hard to add it yourself (:
 
-Safe and performant wrapper around [gnu-libjit](https://www.gnu.org/software/libjit/). A just in time compiler with its
+This crate is a safe and performant wrapper around [gnu-libjit](https://www.gnu.org/software/libjit/). A just in time compiler with its
 own IR, optimization passes, and easy interoperability.
 
-It's possible to jit a small program and execute it in <5ms compared to ~80ms with llvm.
-
-**Warning**: This wrapper contains only exactly the functionality from libjit I needed for my own project. You may find it to be missing a piece of functionality. It shouldn't be too hard to add it yourself (:
+It's possible to jit a small program and execute it in < 5 ms compared to ~ 80 ms with llvm. 
+I highly recmomend the [inkwell](https://github.com/TheDan64/inkwell) library as a safe, feature rich, and well documented
+llvm rust wrapper. Do note that you are unlikely to execute a JIT'ed program in single digit ms with any llvm wrapper.
 
 # Example
 ```rust
@@ -34,6 +35,12 @@ fn main() {
 }
 ```
 See `./examples` and `./src/test.rs` for more. There are no docs. Functions are named almost exactly as in the libjit library. You can use its docs [here](https://www.gnu.org/software/libjit/doc/libjit.html).)
+
+# Features
+- Most common types supported `f32`, `f64`, `i64`, `i32`, `i8`, `u8` `*mut c_void`
+- Easy to call native rust functions
+- Support for inserting labels into the IR
+- `if` `if_not` branching plus the `eq` operator to call them with
 
 # License
 See LICENSE
