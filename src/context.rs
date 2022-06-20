@@ -4,7 +4,7 @@ use gnu_libjit_sys::{jit_context_build_end, jit_context_build_start, jit_context
 use crate::{Abi, Function, JitType};
 
 pub struct Context {
-    pub context: jit_context_t,
+    context: jit_context_t,
 }
 
 #[derive(Clone, Debug)]

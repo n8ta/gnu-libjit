@@ -1,12 +1,7 @@
 #[cfg(test)]
 use std::fmt::Debug;
 #[cfg(test)]
-use std::ops::Add;
-#[cfg(test)]
-use std::sync::{Arc, Mutex};
-#[cfg(test)]
 use gnu_libjit_sys::{jit_type_int, jit_type_float64};
-use libc::c_void;
 #[cfg(test)]
 use crate::{Abi, Context, Function, JitType, Label};
 
@@ -182,7 +177,6 @@ fn test_branching_on_u8() {
     // By branching not doing math
     let zero = func.create_ubyte_constant(0);
     let one = func.create_ubyte_constant(1);
-    let two = func.create_ubyte_constant(2);
     let n_10 = func.create_ubyte_constant(10);
     let n_20 = func.create_ubyte_constant(20);
     let n_30 = func.create_ubyte_constant(30);
@@ -190,13 +184,13 @@ fn test_branching_on_u8() {
     let arg1 = func.arg(0).unwrap();
     let is_zero = func.insn_eq(&zero, &arg1);
     let mut not_zero_lbl = Label::new();
-    func.branch_if_not(is_zero, &mut not_zero_lbl);
+    func.branch_if_not(&is_zero, &mut not_zero_lbl);
     func.insn_return(n_10);
 
     func.insn_label(not_zero_lbl);
     let is_one = func.insn_eq(&one, &arg1);
     let mut not_one_lbl = Label::new();
-    func.branch_if_not(is_one, &mut not_one_lbl);
+    func.branch_if_not(&is_one, &mut not_one_lbl);
     func.insn_return(n_20);
 
     func.insn_label(not_one_lbl);
@@ -238,4 +232,43 @@ fn test_native_func_passing_a_ptr_over_ffi() {
     assert_eq!(value, 11);
     result(0);
     assert_eq!(value, 12);
+}
+
+
+#[test]
+fn fn_test_load_and_store() {
+    let mut context = Context::new();
+    context.build_start();
+
+
+    let float_type = Context::float64_type();
+    let params = vec![float_type];
+    let mut func = context.function(Abi::Cdecl, float_type, params).unwrap();
+
+    let x = func.arg(0).unwrap();
+    let float_ptr_1 = func.alloca(8);
+    let float_ptr_2 = func.alloca(8);
+
+    let const_dbl = func.create_float64_constant(123.0);
+    func.store(&float_ptr_2, &const_dbl);
+
+    func.store(&float_ptr_1, &x);
+    let f1 = func.load(&float_ptr_1);
+
+    func.store(&float_ptr_1, &f1);
+    let f2 = func.load(&float_ptr_1);
+
+    func.store(&float_ptr_1, &f2);
+    let f3 = func.load(&float_ptr_1);
+
+    let const_dbl2 = func.load(&float_ptr_2);
+
+    let x_plus_123 = func.insn_add(&const_dbl2, &f3);
+
+    func.insn_return(x_plus_123);
+    func.compile();
+    context.build_end();
+
+    let result: extern "C" fn(f64) -> f64 = func.to_closure();
+    assert_eq!(result(1.0), 124.0);
 }

@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use std::os::raw::c_uint;
-use gnu_libjit_sys::{jit_function_compile, jit_function_t, jit_insn_eq, jit_type_int, jit_type_sys_int, jit_type_uint, jit_type_sys_uint, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_value_get_type, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure, jit_insn_branch_if, jit_label_t, jit_insn_label, jit_insn_branch_if_not, jit_type_long, jit_constant_t__bindgen_ty_1, jit_type_sbyte, jit_type_float64, jit_type_ubyte, jit_type_void_ptr};
+use gnu_libjit_sys::{jit_function_compile, jit_function_t, jit_insn_eq, jit_type_nint, jit_type_int, jit_type_sys_int, jit_type_uint, jit_type_sys_uint, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_value_get_type, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure, jit_insn_branch_if, jit_label_t, jit_insn_label, jit_insn_branch_if_not, jit_type_long, jit_constant_t__bindgen_ty_1, jit_type_sbyte, jit_type_float64, jit_type_ubyte, jit_type_void_ptr, jit_insn_alloca, jit_insn_load, jit_insn_store, jit_value_create_nint_constant, jit_type_create_pointer};
 use libc::c_void;
 use crate::context::Exception;
 use crate::{Abi, JitType};
@@ -19,8 +19,7 @@ macro_rules! op {
         pub fn $fn_name(&mut self, left: &Value, right: &Value) -> Value {
             unsafe {
                 let v = $jit_op(self.function, left.value, right.value);
-                let t = jit_value_get_type(v);
-                Value::new(v, JitType::new(t))
+                Value::new(v)
             }
         }
     }
@@ -49,28 +48,10 @@ macro_rules! constant_fn {
             let jit_const = unsafe {
                 jit_value_create_constant(self.function, &constant as *const jit_constant_t)
             };
-            Value::new(jit_const, JitType::new(constant.type_))
+            Value::new(jit_const)
         }
     }
 }
-
-/*
-    pub fn create_float64_constant(&mut self, number: ::std::os::raw::c_double) -> Value {
-        let type_ = unsafe { jit_type_float64 };
-        let const_inner = jit_constant_t__bindgen_ty_1{ float64_value: number};
-        let constant = jit_constant_t {
-            type_,
-            __bindgen_padding_0: 0,
-            un: const_inner,
-        };
-
-        Value::new(unsafe {
-            jit_value_create_constant(
-                self.function, &constant as *const jit_constant_t)
-        },
-                   JitType::new(constant.inner.type_))
-    }
- */
 
 pub struct Function {
     params: Vec<JitType>,
@@ -88,6 +69,13 @@ impl Function {
             if jit_function_compile(self.function) == 0 {
                 panic!("Failed to compile function");
             }
+        }
+    }
+
+    pub fn alloca(&self, size: ::std::os::raw::c_long) -> Value {
+        unsafe {
+            let bytes = jit_value_create_nint_constant(self.function, jit_type_ubyte, size);
+            Value::new(jit_insn_alloca(self.function, bytes))
         }
     }
 
@@ -146,7 +134,7 @@ impl Function {
         let value = unsafe {
             jit_value_get_param(self.function, idx as c_uint)
         };
-        Ok(Value::new(value, *arg_type))
+        Ok(Value::new(value))
     }
 
     op!(insn_mult, jit_insn_mul);
@@ -158,10 +146,24 @@ impl Function {
     unary_op!(insn_return, jit_insn_return);
 
     pub fn branch_if(&self, value: Value, label: &mut Label) {
-        unsafe {  jit_insn_branch_if(self.function, value.value, &mut label.inner as *mut jit_label_t);  }
+        unsafe { jit_insn_branch_if(self.function, value.value, &mut label.inner as *mut jit_label_t); }
     }
 
-    pub fn branch_if_not(&self, value: Value, label: &mut Label) {
+    pub fn load(&mut self, ptr: &Value) -> Value {
+        unsafe {
+            let value = jit_insn_load(self.function, ptr.value);
+            // let value_type = jit_value_get_type(value);
+            Value::new(value)
+        }
+    }
+
+    pub fn store(&mut self, ptr: &Value, value: &Value) {
+        unsafe {
+            jit_insn_store(self.function,  ptr.value, value.value);
+        }
+    }
+
+    pub fn branch_if_not(&self, value: &Value, label: &mut Label) {
         unsafe { jit_insn_branch_if_not(self.function, value.value, &mut label.inner as *mut jit_label_t); }
     }
 
@@ -180,4 +182,5 @@ impl Function {
     constant_fn!(create_ubyte_constant, ::std::os::raw::c_uchar, jit_type_ubyte, uint_value);
     constant_fn!(create_sbyte_constant, ::std::os::raw::c_char, jit_type_sbyte, int_value);
     constant_fn!(create_void_ptr_constant, *mut ::std::os::raw::c_void, jit_type_void_ptr, ptr_value);
+    constant_fn!(create_nint_constant, ::std::os::raw::c_int, jit_type_nint, int_value);
 }

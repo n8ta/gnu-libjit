@@ -1,16 +1,18 @@
-use gnu_libjit_sys::jit_value_t;
+use gnu_libjit_sys::{jit_value_get_type, jit_value_t};
 use crate::JitType;
 
+#[derive(Clone)]
 pub struct Value {
     pub(crate) value: jit_value_t,
-    jit_type: JitType,
 }
 
 impl Value {
-    pub(crate) fn new(value: jit_value_t, jit_type: JitType) -> Value {
-        Value { value, jit_type }
+    pub(crate) fn new(value: jit_value_t) -> Value {
+        Value { value }
     }
     pub fn value_type(&self) -> JitType {
-        self.jit_type.clone()
+        JitType::new(unsafe {
+            jit_value_get_type(self.value)
+        })
     }
 }
