@@ -1,37 +1,37 @@
-use gnu_libjit_sys::jit_value_get_type;
-use gnu_libjit::{Abi, Context, Label};
+use gnu_libjit::{Abi, Context};
 
 fn main() {
     let mut context = Context::new();
     context.build_start();
-
 
     let float_type = Context::float64_type();
     let params = vec![float_type];
     let mut func = context.function(Abi::Cdecl, float_type, params).unwrap();
 
     let x = func.arg(0).unwrap();
-    let extra_ptr = func.alloca(8);
+    let float_ptr_1 = func.alloca(8);
+    let float_ptr_2 = func.alloca(8);
 
-    let one_two_three = func.create_float64_constant(123.0);
-    let is_123 = func.insn_eq(&x, &one_two_three);
-    let mut not_123_label = Label::new();
-    func.store(&extra_ptr, &x);
-    func.branch_if_not(&is_123, &mut not_123_label);
+    let const_dbl = func.create_float64_constant(123.0);
+    func.insn_store(&float_ptr_2, &const_dbl);
 
-    let b_loaded = func.load(&x);
-    let b_plus_x = func.insn_add(&b_loaded, &x);
-    func.store(&extra_ptr, &b_plus_x);
+    func.insn_store(&float_ptr_1, &x);
+    let f1 = func.insn_load(&float_ptr_1);
 
-    func.insn_label(not_123_label);
+    func.insn_store(&float_ptr_1, &f1);
+    let f2 = func.insn_load(&float_ptr_1);
 
-    let xx = func.load(&extra_ptr);
-    func.insn_return(xx);
-    println!("{}", func.dump().unwrap());
+    func.insn_store(&float_ptr_1, &f2);
+    let f3 = func.insn_load(&float_ptr_1);
+
+    let const_dbl2 = func.insn_load(&float_ptr_2);
+
+    let x_plus_123 = func.insn_add(&const_dbl2, &f3);
+
+    func.insn_return(x_plus_123);
     func.compile();
-
     context.build_end();
 
     let result: extern "C" fn(f64) -> f64 = func.to_closure();
-    println!("got '{}'", result(2.0));
+    assert_eq!(result(1.0), 124.0);
 }

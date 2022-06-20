@@ -152,7 +152,7 @@ fn test_branching() {
     let four = func.create_float64_constant(4.0);
     let mut label = Label::new();
     let eq_to_4 = func.insn_eq(&x, &four);
-    func.branch_if(eq_to_4, &mut label);
+    func.insn_branch_if(&eq_to_4, &mut label);
     func.insn_return(not_four_result);
     func.insn_label(label);
     func.insn_return(is_four_result);
@@ -184,13 +184,13 @@ fn test_branching_on_u8() {
     let arg1 = func.arg(0).unwrap();
     let is_zero = func.insn_eq(&zero, &arg1);
     let mut not_zero_lbl = Label::new();
-    func.branch_if_not(&is_zero, &mut not_zero_lbl);
+    func.insn_branch_if_not(&is_zero, &mut not_zero_lbl);
     func.insn_return(n_10);
 
     func.insn_label(not_zero_lbl);
     let is_one = func.insn_eq(&one, &arg1);
     let mut not_one_lbl = Label::new();
-    func.branch_if_not(&is_one, &mut not_one_lbl);
+    func.insn_branch_if_not(&is_one, &mut not_one_lbl);
     func.insn_return(n_20);
 
     func.insn_label(not_one_lbl);
@@ -224,7 +224,7 @@ fn test_native_func_passing_a_ptr_over_ffi() {
     let mut func = context.function(Abi::Cdecl, ubyte_type, vec![ubyte_type]).unwrap();
     let ptr_constant = func.create_void_ptr_constant(ptr_to_value);
     let zero = func.create_ubyte_constant(0);
-    func.insn_call_native(add_one_to_value as *mut libc::c_void, vec![ptr_constant]);
+    func.insn_call_native(add_one_to_value as *mut libc::c_void, vec![ptr_constant], None);
     func.insn_return(zero);
     func.compile();
     let result: extern "C" fn(i8) -> i8 = func.to_closure();
@@ -232,6 +232,26 @@ fn test_native_func_passing_a_ptr_over_ffi() {
     assert_eq!(value, 11);
     result(0);
     assert_eq!(value, 12);
+}
+
+
+#[cfg(test)]
+fn ret_f64() -> f64 {
+    123.123
+}
+
+#[test]
+fn test_native_with_ret_type() {
+    let mut context = Context::new();
+    context.build_start();
+    let ubyte_type = Context::ubyte_type();
+    let mut func = context.function(Abi::Cdecl, Context::float64_type(), vec![Context::float64_type()]).unwrap();
+    let ret = func.insn_call_native(ret_f64 as *mut libc::c_void, vec![], Some(Context::float64_type()));
+    func.insn_return(ret);
+    func.compile();
+    context.build_end();
+    let result: extern "C" fn() -> f64 = func.to_closure();
+    assert_eq!(result(), 123.123);
 }
 
 
@@ -250,18 +270,18 @@ fn fn_test_load_and_store() {
     let float_ptr_2 = func.alloca(8);
 
     let const_dbl = func.create_float64_constant(123.0);
-    func.store(&float_ptr_2, &const_dbl);
+    func.insn_store(&float_ptr_2, &const_dbl);
 
-    func.store(&float_ptr_1, &x);
-    let f1 = func.load(&float_ptr_1);
+    func.insn_store(&float_ptr_1, &x);
+    let f1 = func.insn_load(&float_ptr_1);
 
-    func.store(&float_ptr_1, &f1);
-    let f2 = func.load(&float_ptr_1);
+    func.insn_store(&float_ptr_1, &f1);
+    let f2 = func.insn_load(&float_ptr_1);
 
-    func.store(&float_ptr_1, &f2);
-    let f3 = func.load(&float_ptr_1);
+    func.insn_store(&float_ptr_1, &f2);
+    let f3 = func.insn_load(&float_ptr_1);
 
-    let const_dbl2 = func.load(&float_ptr_2);
+    let const_dbl2 = func.insn_load(&float_ptr_2);
 
     let x_plus_123 = func.insn_add(&const_dbl2, &f3);
 
@@ -271,4 +291,24 @@ fn fn_test_load_and_store() {
 
     let result: extern "C" fn(f64) -> f64 = func.to_closure();
     assert_eq!(result(1.0), 124.0);
+}
+
+#[test]
+fn test_unconditional_branch() {
+    let mut context = Context::new();
+    context.build_start();
+    let int_type = Context::int_type();
+    let params = vec![];
+    let mut func = context.function(Abi::Cdecl, int_type, params).unwrap();
+    let mut lbl = Label::new();
+    func.insn_branch(&mut lbl);
+    let ten = func.create_int_constant(10);
+    func.insn_return(ten);
+    func.insn_label(lbl);
+    let twenty = func.create_int_constant(20);
+    func.insn_return(twenty);
+    func.compile();
+    context.build_end();
+    let result: extern "C" fn() -> i32 = func.to_closure();
+    assert_eq!(result(), 20);
 }

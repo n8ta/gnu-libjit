@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use std::os::raw::c_uint;
-use gnu_libjit_sys::{jit_function_compile, jit_function_t, jit_insn_eq, jit_type_nint, jit_type_int, jit_type_sys_int, jit_type_uint, jit_type_sys_uint, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_value_get_type, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure, jit_insn_branch_if, jit_label_t, jit_insn_label, jit_insn_branch_if_not, jit_type_long, jit_constant_t__bindgen_ty_1, jit_type_sbyte, jit_type_float64, jit_type_ubyte, jit_type_void_ptr, jit_insn_alloca, jit_insn_load, jit_insn_store, jit_value_create_nint_constant, jit_type_create_pointer};
+use gnu_libjit_sys::{jit_function_compile, jit_function_t, jit_insn_eq, jit_type_nint, jit_type_int, jit_type_sys_int, jit_type_uint, jit_type_sys_uint, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_value_get_type, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure, jit_insn_branch_if, jit_label_t, jit_insn_label, jit_insn_branch_if_not, jit_type_long, jit_constant_t__bindgen_ty_1, jit_type_sbyte, jit_type_float64, jit_type_ubyte, jit_type_void_ptr, jit_insn_alloca, jit_insn_load, jit_insn_store, jit_value_create_nint_constant, jit_type_create_pointer, jit_insn_branch};
 use libc::c_void;
 use crate::context::Exception;
 use crate::{Abi, JitType};
@@ -95,7 +95,7 @@ impl Function {
     }
 
     // Call a native rust function
-    pub fn insn_call_native(&self, native_func: *mut ::std::os::raw::c_void, params: Vec<Value>) {
+    pub fn insn_call_native(&self, native_func: *mut ::std::os::raw::c_void, params: Vec<Value>, return_type: Option<JitType>) -> Value {
         let c_str = CString::new("native-func").unwrap();
         let c_str_ptr = c_str.as_ptr();
         let mut sig_args = vec![];
@@ -107,19 +107,19 @@ impl Function {
         unsafe {
             let signature = jit_type_create_signature(
                 Abi::Cdecl as jit_abi_t,
-                jit_type_void,
+                if let Some(jtype) = return_type { jtype.inner } else { jit_type_void },
                 sig_args.as_mut_ptr(),
                 params.len() as c_uint,
                 1,
             );
-            jit_insn_call_native(self.function,
+            Value::new(jit_insn_call_native(self.function,
                                  c_str_ptr,
                                  native_func,
                                  signature,
                                  args.as_mut_ptr(),
                                  params.len() as c_uint,
                                  0,
-            );
+            ))
         }
     }
 
@@ -145,11 +145,19 @@ impl Function {
 
     unary_op!(insn_return, jit_insn_return);
 
-    pub fn branch_if(&self, value: Value, label: &mut Label) {
+    pub fn insn_branch(&self, label: &mut Label) {
+        unsafe { jit_insn_branch(self.function, &mut label.inner as *mut jit_label_t); }
+    }
+
+    pub fn insn_branch_if(&self, value: &Value, label: &mut Label) {
         unsafe { jit_insn_branch_if(self.function, value.value, &mut label.inner as *mut jit_label_t); }
     }
 
-    pub fn load(&mut self, ptr: &Value) -> Value {
+    pub fn insn_branch_if_not(&self, value: &Value, label: &mut Label) {
+        unsafe { jit_insn_branch_if_not(self.function, value.value, &mut label.inner as *mut jit_label_t); }
+    }
+
+    pub fn insn_load(&mut self, ptr: &Value) -> Value {
         unsafe {
             let value = jit_insn_load(self.function, ptr.value);
             // let value_type = jit_value_get_type(value);
@@ -157,14 +165,10 @@ impl Function {
         }
     }
 
-    pub fn store(&mut self, ptr: &Value, value: &Value) {
+    pub fn insn_store(&mut self, ptr: &Value, value: &Value) {
         unsafe {
             jit_insn_store(self.function,  ptr.value, value.value);
         }
-    }
-
-    pub fn branch_if_not(&self, value: &Value, label: &mut Label) {
-        unsafe { jit_insn_branch_if_not(self.function, value.value, &mut label.inner as *mut jit_label_t); }
     }
 
     pub fn insn_label(&self, mut label: Label) {
