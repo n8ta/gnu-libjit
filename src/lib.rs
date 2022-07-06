@@ -15,3 +15,4 @@ pub use jit_type::JitType;
 pub use abi::Abi;
 pub use function::{Function};
 pub use label::Label;
+pub use value::Value;

@@ -1,18 +1,13 @@
 use std::ffi::CString;
 use std::os::raw::c_uint;
-use gnu_libjit_sys::{jit_function_compile, jit_function_t, jit_insn_eq, jit_type_nint, jit_type_int, jit_type_sys_int, jit_type_uint, jit_type_sys_uint, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_value_get_type, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure, jit_insn_branch_if, jit_label_t, jit_insn_label, jit_insn_branch_if_not, jit_type_long, jit_constant_t__bindgen_ty_1, jit_type_sbyte, jit_type_float64, jit_type_ubyte, jit_type_void_ptr, jit_insn_alloca, jit_insn_load, jit_insn_store, jit_value_create_nint_constant, jit_type_create_pointer, jit_insn_branch};
+use gnu_libjit_sys::{jit_function_compile, jit_insn_not, jit_insn_ge, jit_insn_le, jit_insn_gt, jit_insn_lt, jit_insn_ne,
+                     jit_insn_and, jit_insn_or, jit_insn_xor, jit_function_t, jit_insn_eq, jit_type_nint, jit_type_int, jit_type_sys_int, jit_type_uint, jit_type_sys_uint, jit_insn_add, jit_insn_div, jit_insn_sub, jit_insn_call_native, jit_insn_mul, jit_insn_return, jit_type_create_signature, jit_type_void, jit_value_create_constant, jit_value_get_param, jit_constant_t, jit_dump_function, jit_abi_t, jit_function_to_closure, jit_insn_branch_if, jit_label_t, jit_insn_label, jit_insn_branch_if_not, jit_type_long, jit_constant_t__bindgen_ty_1, jit_type_sbyte, jit_type_float64, jit_type_ubyte, jit_type_void_ptr, jit_insn_alloca, jit_insn_load, jit_insn_store, jit_value_create_nint_constant, jit_insn_branch};
 use libc::c_void;
 use crate::context::Exception;
 use crate::{Abi, JitType};
 use crate::label::Label;
 use crate::util::dump;
 use crate::value::Value;
-
-// macro_rules! to_void_ptr {
-//     ($int:ident) => {
-//         ((&mut $int as *mut libc::c_int) as *mut libc::c_void)
-//     }
-// }
 
 macro_rules! op {
     ($fn_name:ident, $jit_op:ident) => {
@@ -25,11 +20,22 @@ macro_rules! op {
     }
 }
 
-macro_rules! unary_op {
+macro_rules! ret_op {
     ($fn_name:ident, $jit_op:ident) => {
-        pub fn $fn_name(&mut self, value: Value) {
+        pub fn $fn_name(&mut self, value:& Value) {
             unsafe {
                 $jit_op(self.function, value.value);
+            }
+        }
+    }
+}
+
+macro_rules! unary_op {
+    ($fn_name:ident, $jit_op:ident) => {
+        pub fn $fn_name(&mut self, value: &Value) -> Value {
+            unsafe {
+                let v =$jit_op(self.function, value.value);
+                Value::new(v)
             }
         }
     }
@@ -113,19 +119,19 @@ impl Function {
                 1,
             );
             Value::new(jit_insn_call_native(self.function,
-                                 c_str_ptr,
-                                 native_func,
-                                 signature,
-                                 args.as_mut_ptr(),
-                                 params.len() as c_uint,
-                                 0,
+                                            c_str_ptr,
+                                            native_func,
+                                            signature,
+                                            args.as_mut_ptr(),
+                                            params.len() as c_uint,
+                                            0,
             ))
         }
     }
 
     // Get the value of the idx'th arg to the function
     pub fn arg(&self, idx: i32) -> Result<Value, Exception> {
-        let arg_type = match self.params.get(idx as usize) {
+        let _arg_type = match self.params.get(idx as usize) {
             Some(arg_type) => arg_type,
             None => {
                 return Err(Exception::ArgIndexTooLarge(format!("Function has {} args but you requested index {}", self.params.len(), idx)));
@@ -142,8 +148,19 @@ impl Function {
     op!(insn_div, jit_insn_div);
     op!(insn_sub, jit_insn_sub);
     op!(insn_eq, jit_insn_eq);
+    op!(insn_and, jit_insn_and);
+    op!(insn_or, jit_insn_or);
+    op!(insn_xor, jit_insn_xor);
+    op!(insn_le, jit_insn_le);
+    op!(insn_lt, jit_insn_lt);
+    op!(insn_ge, jit_insn_ge);
+    op!(insn_gt, jit_insn_gt);
+    op!(insn_ne, jit_insn_ne);
 
-    unary_op!(insn_return, jit_insn_return);
+
+    ret_op!(insn_return, jit_insn_return);
+
+    unary_op!(insn_not, jit_insn_not);
 
     pub fn insn_branch(&self, label: &mut Label) {
         unsafe { jit_insn_branch(self.function, &mut label.inner as *mut jit_label_t); }
@@ -167,11 +184,11 @@ impl Function {
 
     pub fn insn_store(&mut self, ptr: &Value, value: &Value) {
         unsafe {
-            jit_insn_store(self.function,  ptr.value, value.value);
+            jit_insn_store(self.function, ptr.value, value.value);
         }
     }
 
-    pub fn insn_label(&self, mut label: Label) {
+    pub fn insn_label(&self, label: &mut Label) {
         let lbl_ptr = (&mut label.inner) as *mut jit_label_t;
         unsafe { jit_insn_label(self.function, lbl_ptr); }
     }

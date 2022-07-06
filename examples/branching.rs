@@ -18,9 +18,9 @@ fn main() {
     let mut label = Label::new();
     let eq_to_4 = func.insn_eq(&x, &four);
     func.insn_branch_if(&eq_to_4, &mut label);
-    func.insn_return(not_four_result);
-    func.insn_label(label);
-    func.insn_return(is_four_result);
+    func.insn_return(&not_four_result);
+    func.insn_label(&mut label);
+    func.insn_return(&is_four_result);
     func.compile();
     context.build_end();
     let result: extern "C" fn(f64) -> f64 = func.to_closure();

@@ -28,7 +28,7 @@ fn main() {
 
     let x_plus_123 = func.insn_add(&const_dbl2, &f3);
 
-    func.insn_return(x_plus_123);
+    func.insn_return(&x_plus_123);
     func.compile();
     context.build_end();
 
